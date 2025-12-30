@@ -80,6 +80,25 @@ const MusicPlayer = () => {
 
     const folderInputRef = useRef(null);
     const fileInputRef = useRef(null);
+    const youTubePlayerRef = useRef(null);
+
+    const handleSkipForward = () => {
+        if (isYouTube && youTubePlayerRef.current) {
+            const current = youTubePlayerRef.current.getCurrentTime();
+            youTubePlayerRef.current.seekTo(current + 10, true);
+        } else if (wavesurfer.current) {
+            wavesurfer.current.skip(10);
+        }
+    };
+
+    const handleSkipBackward = () => {
+        if (isYouTube && youTubePlayerRef.current) {
+            const current = youTubePlayerRef.current.getCurrentTime();
+            youTubePlayerRef.current.seekTo(Math.max(0, current - 10), true);
+        } else if (wavesurfer.current) {
+            wavesurfer.current.skip(-10);
+        }
+    };
 
     // Constants for Online Songs
     const onlineSongs = [
@@ -691,6 +710,7 @@ const MusicPlayer = () => {
                     isPlaying={isPlaying}
                     volume={volume}
                     onEnd={handleSongEnd}
+                    onReady={(player) => { youTubePlayerRef.current = player; }}
                     onProgress={(cur, dur) => {
                         setCurrentTime(cur);
                         if (dur > 0) setDuration(dur);
@@ -731,9 +751,23 @@ const MusicPlayer = () => {
                     <Button icon circular size='large' onClick={handlePrev}>
                         <Icon name='step backward' />
                     </Button>
+
+                    {/* Skip Backward 10s */}
+                    <Button icon circular size='large' onClick={handleSkipBackward} title="Backward 10s">
+                        <Icon name='undo' />
+                        <span style={{ fontSize: '10px', position: 'absolute', bottom: '2px', width: '100%', left: 0 }}>10s</span>
+                    </Button>
+
                     <Button icon circular size='huge' color='violet' onClick={handlePlayPause}>
                         <Icon name={isPlaying ? 'pause' : 'play'} />
                     </Button>
+
+                    {/* Skip Forward 10s */}
+                    <Button icon circular size='large' onClick={handleSkipForward} title="Forward 10s">
+                        <Icon name='redo' />
+                        <span style={{ fontSize: '10px', position: 'absolute', bottom: '2px', width: '100%', left: 0 }}>10s</span>
+                    </Button>
+
                     <Button icon circular size='large' onClick={handleNext}>
                         <Icon name='step forward' />
                     </Button>
