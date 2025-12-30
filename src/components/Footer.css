@@ -9,17 +9,9 @@
 .footer_main {
     padding: 50px;
     animation: slideUp 1s ease-out;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
     margin-top: 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-[data-theme='dark'] .footer_main {
-    background: rgba(0, 0, 0, 0.3);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
 
 /* ... existing styles ... */
 
