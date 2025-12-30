@@ -17,10 +17,18 @@ const MusicPlayer = () => {
     const [currentTime, setCurrentTime] = useState(0);
     const [loopMode, setLoopMode] = useState('off'); // off, one, all
     const [activeTab, setActiveTab] = useState(0); // 0: Local, 1: Online
+    const [volume, setVolume] = useState(0.8); // Default 80%
+
+    // Update WaveSurfer volume
+    useEffect(() => {
+        if (wavesurfer.current) {
+            wavesurfer.current.setVolume(volume);
+        }
+    }, [volume]);
 
     // Audio Analysis State
     const [audioInfo, setAudioInfo] = useState({ bpm: '---', key: '---', signature: '---' });
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [, setIsAnalyzing] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
@@ -129,7 +137,7 @@ const MusicPlayer = () => {
             wavesurfer.current.on('finish', handleSongEnd);
 
             // Loop region logic
-            wsRegions.on('region-updated', (region) => {
+            wsRegions.on('region-updated', () => {
                 // When user stops dragging, ensure loop is set
                 // console.log("Region updated", region);
             });
@@ -506,9 +514,7 @@ const MusicPlayer = () => {
         if (regions.current) regions.current.clearRegions();
     };
 
-    const hasRegion = () => {
-        return regions.current && regions.current.getRegions().length > 0;
-    }
+
 
     const handleFileSelect = (e) => {
         const files = Array.from(e.target.files).filter(file => {
@@ -683,7 +689,7 @@ const MusicPlayer = () => {
                     key={youTubeVideoId}
                     videoId={youTubeVideoId}
                     isPlaying={isPlaying}
-                    volume={1} // Max volume, controlled by OS
+                    volume={volume}
                     onEnd={handleSongEnd}
                     onProgress={(cur, dur) => {
                         setCurrentTime(cur);
@@ -694,6 +700,28 @@ const MusicPlayer = () => {
                 <div className="time-display" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                     <span>{formatTime(currentTime)}</span>
                     <span>{formatTime(duration)}</span>
+                </div>
+
+                {/* Volume Control */}
+                <div className="volume-control" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '15px', maxWidth: '300px', margin: '0 auto 20px auto' }}>
+                    <Icon
+                        name={volume === 0 ? 'volume off' : volume < 0.5 ? 'volume down' : 'volume up'}
+                        onClick={() => setVolume(volume === 0 ? 1 : 0)}
+                        style={{ cursor: 'pointer', marginRight: '10px' }}
+                    />
+                    <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={volume}
+                        onChange={(e) => setVolume(parseFloat(e.target.value))}
+                        style={{
+                            width: '100%',
+                            cursor: 'pointer',
+                            accentColor: '#9333ea'
+                        }}
+                    />
                 </div>
 
                 <div className="controls">
@@ -724,6 +752,7 @@ const MusicPlayer = () => {
             <Tab
                 menu={{ secondary: true, pointing: true }}
                 panes={panes}
+                activeIndex={activeTab}
                 onTabChange={(e, data) => setActiveTab(data.activeIndex)}
             />
         </div>
