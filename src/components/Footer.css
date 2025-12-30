@@ -1,0 +1,97 @@
+.footer_content {
+    text-align: center;
+    color: var(--text-color);
+    opacity: 0.9;
+    font-weight: 500;
+    /* background-color: rgba(255, 166, 0, 0.91); */
+}
+
+.footer_main {
+    padding: 50px;
+    animation: slideUp 1s ease-out;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    margin-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme='dark'] .footer_main {
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ... existing styles ... */
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+.footer_Icons {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.footer_Icons span {
+    margin: 0 10px;
+}
+
+/* Brand Colors */
+.footer_Icons a {
+    opacity: 0.8;
+    transition: 0.3s;
+    display: inline-block;
+    /* Removed global color override to allow specific brand colors */
+}
+
+/* Specific Brand Colors */
+.footer_git i.icon {
+    color: #333;
+}
+
+.footer_link i.icon {
+    color: #0077b5;
+}
+
+.footer_insta i.icon {
+    color: #E1306C;
+}
+
+.footer_wht i.icon {
+    color: #25D366;
+}
+
+.footer_twi svg {
+    fill: #000000;
+}
+
+/* Dark Mode Adjustments for Monochrome Logos */
+[data-theme='dark'] .footer_git i.icon {
+    color: #ffffff;
+}
+
+[data-theme='dark'] .footer_twi svg {
+    fill: #ffffff;
+}
+
+.footer_Icons a:hover {
+    opacity: 1;
+    transform: scale(1.2);
+    /* No color override on hover to keep brand colors */
+}
+
+/* Specific brand overrides if needed, but defaulting to text color helps visibility */
+/* Dark mode check is handled by var(--text-color) */
+
+/* If user wants brand colors, we need a background or stroke.
+   For now, simple monochrome high contrast is safest "clearly visible".
+*/

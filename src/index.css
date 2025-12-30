@@ -1,0 +1,45 @@
+:root {
+  --background-color: #ffffff;
+  --text-color: #213547;
+  --primary-color: #646cff;
+}
+
+[data-theme='dark'] {
+  --background-color: #242424;
+  --text-color: rgba(255, 255, 255, 0.87);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  /* Removed min-width restrictions */
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  background-image: url('./assets/backgrounds/light-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  transition: background-color 0.3s, color 0.3s, background-image 0.3s;
+}
+
+[data-theme='dark'] body {
+  background-image: url('./assets/backgrounds/dark-bg.png');
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+}

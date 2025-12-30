@@ -1,0 +1,111 @@
+.music-player-container {
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.player-card {
+    text-align: center;
+    padding: 30px !important;
+    border-radius: 20px !important;
+    background: var(--background-color) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+    transition: background 0.3s !important;
+    margin-bottom: 20px !important;
+}
+
+[data-theme='dark'] .player-card {
+    background: #1e1e1e !important;
+    border: 1px solid #333 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+.song-info h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-color);
+}
+
+.song-info p {
+    color: gray;
+    margin-top: 5px;
+}
+
+/* Updated for Waveform */
+.waveform-container {
+    width: 100%;
+    margin: 20px 0;
+    cursor: pointer;
+    /* Ensure it has height for initial render */
+    min-height: 100px;
+}
+
+.time-display {
+    color: gray;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+/* Removed seek-slider styles as it's replaced by waveform */
+
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.ab-controls {
+    margin-top: 10px;
+    position: relative;
+    padding-bottom: 10px;
+}
+
+/* Tab and List styling */
+.ui.pointing.secondary.menu .item {
+    color: var(--text-color) !important;
+}
+
+[data-theme='dark'] .ui.pointing.secondary.menu .item {
+    color: #ffffff !important;
+    /* Force White for visibility in Dark Mode */
+}
+
+.ui.pointing.secondary.menu .active.item {
+    color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+[data-theme='dark'] .ui.pointing.secondary.menu .active.item {
+    color: #a78bfa !important;
+    /* Bright Purple for active state in Dark Mode */
+    border-color: #a78bfa !important;
+}
+
+.ui.list .list.icon {
+    color: var(--text-color) !important;
+}
+
+.ui.list .header {
+    color: var(--text-color) !important;
+}
+
+.ui.list .description {
+    color: gray !important;
+}
+
+.ui.list .item.active {
+    background: rgba(100, 108, 255, 0.1);
+    border-radius: 10px;
+}
+
+[data-theme='dark'] .ui.list .item.active {
+    background: rgba(100, 108, 255, 0.2);
+}
+
+/* Audio Analysis Stats Dark Mode */
+[data-theme='dark'] .ui.statistic>.value,
+[data-theme='dark'] .ui.statistic>.label {
+    color: var(--text-color) !important;
+}
