@@ -13,6 +13,8 @@ A modern, feature-rich Music Player built with **React**, **Vite**, and **Semant
 *   **Local Playback**: Play audio files (MP3, WAV, FLAC, etc.) directly from your device storage. Supports folder selection.
 *   **Online Integration**: Search and play songs from **YouTube** directly within the app.
 *   **Waveform Control**: Interactive waveform navigation using `wavesurfer.js`.
+*   **Precision Control**: Skip backward/forward by 10 seconds for detailed listening.
+*   **Loop Modes**: Toggle between repeating One song, All songs, or turning Loop Off.
 *   **A-B Loop**: Drag-to-select regions on the waveform or use "Set A/B" buttons for precise looping (Local files only).
 
 ### 🎨 Visuals & UI

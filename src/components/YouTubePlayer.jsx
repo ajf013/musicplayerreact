@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 
-const YouTubePlayer = ({ videoId, isPlaying, volume, onReady, onEnd, onStateChange, onProgress }) => {
+const YouTubePlayer = ({ videoId, isPlaying, volume, onReady, onEnd, onStateChange, onProgress, onVolumeChange }) => {
     const playerRef = useRef(null);
 
     // Options for the player
@@ -45,7 +45,7 @@ const YouTubePlayer = ({ videoId, isPlaying, volume, onReady, onEnd, onStateChan
         }
     }, [volume]);
 
-    // Internal polling for progress since IFrame API doesn't have an event for it
+    // Internal polling for progress and volume since IFrame API doesn't have events for them in all cases
     useEffect(() => {
         let interval;
         if (isPlaying && playerRef.current) {
@@ -55,10 +55,16 @@ const YouTubePlayer = ({ videoId, isPlaying, volume, onReady, onEnd, onStateChan
                     const duration = playerRef.current.getDuration();
                     if (onProgress) onProgress(current, duration);
                 }
+                // Poll for volume changes (external/hardware changes reflected in player)
+                if (typeof playerRef.current.getVolume === 'function') {
+                    const currentVol = playerRef.current.getVolume();
+                    // YouTube returns 0-100, we use 0-1
+                    if (onVolumeChange) onVolumeChange(currentVol / 100);
+                }
             }, 500); // Check every 500ms
         }
         return () => clearInterval(interval);
-    }, [isPlaying, onProgress]);
+    }, [isPlaying, onProgress, onVolumeChange]);
 
     const _onError = (event) => {
         console.error("YouTube Player Error:", event.data);
