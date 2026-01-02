@@ -92,6 +92,17 @@ const MusicPlayer = () => {
     const folderInputRef = useRef(null);
     const fileInputRef = useRef(null);
     const youTubePlayerRef = useRef(null);
+    const audioRef = useRef(null); // Ref for the hidden audio element
+    const pendingPlayIndex = useRef(null); // Ref to track pending autoplay index
+
+    // Refs for state access in event listeners
+    const songsRef = useRef(songs);
+    const currentIndexRef = useRef(currentSongIndex);
+
+    useEffect(() => {
+        songsRef.current = songs;
+        currentIndexRef.current = currentSongIndex;
+    }, [songs, currentSongIndex]);
 
     const handleSkipForward = () => {
         if (isYouTube && youTubePlayerRef.current) {
@@ -132,7 +143,7 @@ const MusicPlayer = () => {
                 responsive: true,
                 height: 120, // Taller for better visibility
                 normalize: true,
-                backend: 'WebAudio',
+                media: audioRef.current, // Use the Media element for playback (Background Audio support)
                 plugins: [
                     TimelinePlugin.create({
                         container: timelineRef.current,
@@ -170,14 +181,24 @@ const MusicPlayer = () => {
             wavesurfer.current.on('finish', handleSongEnd);
 
             // Loop region logic
-            wsRegions.on('region-updated', () => {
-                // When user stops dragging, ensure loop is set
-                // console.log("Region updated", region);
+            wsRegions.on('region-updated', (region) => {
+                // When user updates, zoom into the region
+                const duration = region.end - region.start;
+                if (duration > 0 && waveformRef.current) {
+                    const minPxPerSec = waveformRef.current.clientWidth / duration;
+                    wavesurfer.current.zoom(minPxPerSec);
+                }
             });
 
             wsRegions.on('region-created', (region) => {
                 // Play immediately from the start of the new region when user starts dragging
                 region.play();
+                // Zoom logic
+                const duration = region.end - region.start;
+                if (duration > 0 && waveformRef.current) {
+                    const minPxPerSec = waveformRef.current.clientWidth / duration;
+                    wavesurfer.current.zoom(minPxPerSec);
+                }
             });
 
             wsRegions.on('region-out', (region) => {
@@ -277,12 +298,43 @@ const MusicPlayer = () => {
 
                     dataArray[i] = Math.max(0, Math.min(255, wave1 + wave2 + noise));
                 }
-            } else if (wavesurfer.current && wavesurfer.current.backend && wavesurfer.current.backend.analyser) {
-                const analyser = wavesurfer.current.backend.analyser;
-                analyser.fftSize = 256;
-                bufferLength = analyser.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-                analyser.getByteFrequencyData(dataArray);
+            } else if (wavesurfer.current) {
+                // For MediaElement, we might not have direct access to 'backend.analyser' in the same way
+                // depending on WS version. If it fails, fallback to simple animation.
+                try {
+                    // Try getting analyser from the backend if available (WebAudio backend or mapped)
+                    // With 'media' option, WS might not expose analyer directly unless we hook it up.
+                    // However, let's assume if it exists we use it, otherwise fallback.
+                    /* 
+                       NOTE: Integrating Visualizer with MediaElement backend requires creating a MediaElementSourceNode.
+                       This is complex to do inside this existing useEffect without causing context issues.
+                       For now, we will fallback to the 'simulated' visualizer if analyser is missing,
+                       to prevent crashing and ensure SOMETHING shows.
+                    */
+                    // Check if analyser exists (it might not with media element)
+                    const backend = wavesurfer.current.backend; // In v7, this checks the renderer or media wrapper
+                    // Actually in v7, simply:
+                    // We'd need to attach an analyser. 
+                    // Let's use the simulated one (same as YouTube) for now to ensure consistency 
+                    // since 'media' element prevents easy WebAudio API access without keeping the context open and handling CORS.
+
+                    // Fallback to simulated for now for robustness with MediaElement
+                    bufferLength = 64;
+                    dataArray = new Uint8Array(bufferLength);
+                    const time = Date.now() / 300;
+                    for (let i = 0; i < bufferLength; i++) {
+                        const offset = i / bufferLength * Math.PI * 4;
+                        const wave1 = Math.sin(time + offset) * 100 + 100;
+                        const wave2 = Math.cos(time * 0.5 + offset * 2) * 50;
+                        const noise = Math.random() * 20;
+                        dataArray[i] = Math.max(0, Math.min(255, wave1 + wave2 + noise));
+                    }
+
+                } catch (e) {
+                    console.warn("Visualizer fallback", e);
+                }
+            } else if (false) { // modifying original block to keep structure if needed, but actually replacing it
+                // original code was here
             } else {
                 // Idle state (random low bars or flat)
                 bufferLength = 128; // specific visual look
@@ -536,6 +588,9 @@ const MusicPlayer = () => {
 
     // Handle song finish
     const handleSongEnd = (event) => {
+        const currentIdx = currentIndexRef.current;
+        const currentSongs = songsRef.current;
+
         if (isYouTube) {
             if (loopMode === 'one' && event && event.target) {
                 event.target.seekTo(0);
@@ -543,18 +598,19 @@ const MusicPlayer = () => {
             } else if (loopMode === 'all') {
                 handleNext();
             } else {
-                if (currentSongIndex < songs.length - 1) {
+                if (currentIdx < currentSongs.length - 1) {
                     handleNext();
                 }
             }
         } else {
+            console.log("Song ended. Mode:", loopMode, "Index:", currentIdx, "Total:", currentSongs.length);
             if (loopMode === 'one') {
                 wavesurfer.current.play();
             } else if (loopMode === 'all') {
                 handleNext();
             } else {
                 // Check if there is a next song, if not just stop
-                if (currentSongIndex < songs.length - 1) {
+                if (currentIdx < currentSongs.length - 1) {
                     handleNext();
                 }
             }
@@ -587,6 +643,17 @@ const MusicPlayer = () => {
         }
     }, [currentSongIndex, songs]);
 
+    // Pending Autoplay Effect
+    useEffect(() => {
+        if (pendingPlayIndex.current !== null && songs.length > pendingPlayIndex.current) {
+            const index = pendingPlayIndex.current;
+            pendingPlayIndex.current = null;
+            // Ensure we are ready to play (small delay for Wavesurfer init if needed, though load handles it)
+            // But playSong sets index, which triggers load.
+            playSong(index);
+        }
+    }, [songs]); // Run when songs list updates
+
     const handlePlayPause = () => {
         if (currentSongIndex === -1 && songs.length > 0) {
             playSong(0);
@@ -604,9 +671,12 @@ const MusicPlayer = () => {
     };
 
     const handleNext = () => {
-        if (songs.length === 0) return;
-        let nextIndex = currentSongIndex + 1;
-        if (nextIndex >= songs.length) {
+        const currentSongs = songsRef.current;
+        const currentIdx = currentIndexRef.current;
+
+        if (currentSongs.length === 0) return;
+        let nextIndex = currentIdx + 1;
+        if (nextIndex >= currentSongs.length) {
             if (loopMode === 'all') {
                 nextIndex = 0;
             } else {
@@ -617,18 +687,28 @@ const MusicPlayer = () => {
     };
 
     const handlePrev = () => {
-        if (songs.length === 0) return;
-        let prevIndex = currentSongIndex - 1;
+        const currentSongs = songsRef.current;
+        const currentIdx = currentIndexRef.current;
+
+        if (currentSongs.length === 0) return;
+        let prevIndex = currentIdx - 1;
         if (prevIndex < 0) {
-            prevIndex = loopMode === 'all' ? songs.length - 1 : 0;
+            prevIndex = loopMode === 'all' ? currentSongs.length - 1 : 0;
         }
         playSong(prevIndex);
     };
 
     const toggleLoop = () => {
-        if (loopMode === 'off') setLoopMode('all');
-        else if (loopMode === 'all') setLoopMode('one');
-        else setLoopMode('off');
+        if (loopMode === 'off') {
+            setLoopMode('all');
+        } else if (loopMode === 'all') {
+            setLoopMode('one');
+        } else {
+            setLoopMode('off');
+            // Reset zoom
+            if (wavesurfer.current) wavesurfer.current.zoom(0); // 0 or null resets to default usually, or minPxPerSec
+            if (regions.current) regions.current.clearRegions();
+        }
     };
 
     // A-B Loop Logic using Regions
@@ -674,6 +754,7 @@ const MusicPlayer = () => {
 
     const clearAB = () => {
         if (regions.current) regions.current.clearRegions();
+        if (wavesurfer.current) wavesurfer.current.zoom(0); // Reset zoom
     };
 
 
@@ -690,11 +771,19 @@ const MusicPlayer = () => {
             type: 'local'
         }));
 
-        setSongs(prev => {
-            const nonLocal = prev.filter(s => s.type !== 'local');
-            return [...nonLocal, ...newSongs];
-        });
+        if (newSongs.length > 0) {
+            setSongs(prev => {
+                const nonLocal = prev.filter(s => s.type !== 'local');
+                const startIndex = nonLocal.length;
+
+                // Set pending index for the useEffect to pick up
+                pendingPlayIndex.current = startIndex;
+
+                return [...nonLocal, ...newSongs];
+            });
+        }
     };
+
 
     const loadOnlineMusic = () => {
         setSongs(prev => {
@@ -817,6 +906,8 @@ const MusicPlayer = () => {
     return (
         <div className="music-player-container" data-aos="zoom-in">
             <Segment className="player-card">
+                {/* Hidden Audio Element for Background Play */}
+                <audio ref={audioRef} style={{ display: 'none' }} />
                 <div className="song-info">
                     <h3>{currentSongIndex !== -1 ? songs[currentSongIndex].title : 'Select a Song'}</h3>
                     <p>{currentSongIndex !== -1 ? songs[currentSongIndex].artist : ''}</p>
