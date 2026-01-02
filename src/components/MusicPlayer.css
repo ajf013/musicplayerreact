@@ -2,6 +2,15 @@
     max-width: 600px;
     margin: 0 auto;
     width: 100%;
+    /* Ensure it takes full width but respects container padding */
+    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    .music-player-container {
+        max-width: 100%;
+        padding: 0;
+    }
 }
 
 .player-card {
@@ -12,6 +21,14 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
     transition: background 0.3s !important;
     margin-bottom: 20px !important;
+}
+
+@media (max-width: 480px) {
+    .player-card {
+        padding: 15px !important;
+        /* Reduce padding on small screens */
+        border-radius: 12px !important;
+    }
 }
 
 [data-theme='dark'] .player-card {

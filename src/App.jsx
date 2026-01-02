@@ -32,7 +32,7 @@ function App() {
   return (
     <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header theme={theme} toggleTheme={toggleTheme} />
-      <main style={{ flex: 1, padding: '20px' }}>
+      <main style={{ flex: 1, padding: '10px', width: '100%', boxSizing: 'border-box' }}>
         <MusicPlayer isMobile={true} /> {/* Assuming mobile-first as requested "on the phone" */}
       </main>
       <ReloadPrompt />
