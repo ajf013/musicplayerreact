@@ -13,6 +13,7 @@
   "dependencies": {
     "aos": "^2.3.4",
     "axios": "^1.13.2",
+    "jsmediatags": "^3.9.7",
     "music-tempo": "^1.0.3",
     "react": "^18.3.1",
     "react-audio-visualize": "^1.2.0",

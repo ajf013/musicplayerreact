@@ -7,6 +7,7 @@ import MusicTempo from 'music-tempo';
 import { LiveAudioVisualizer } from 'react-audio-visualize';
 import axios from 'axios';
 import YouTubePlayer from './YouTubePlayer';
+import * as jsmediatags from 'jsmediatags';
 import './MusicPlayer.css';
 
 const MusicPlayer = () => {
@@ -177,6 +178,10 @@ const MusicPlayer = () => {
             wavesurfer.current.on('ready', (d) => {
                 setDuration(d);
                 analyzeAudio(); // Analyze on load
+                // Ensure we play if we are supposed to be playing
+                if (isPlaying) {
+                    wavesurfer.current.play();
+                }
             });
             wavesurfer.current.on('finish', handleSongEnd);
 
@@ -242,9 +247,16 @@ const MusicPlayer = () => {
             if (currentSong) {
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: currentSong.title,
-                    artist: currentSong.artist,
-                    artwork: [
-                        { src: currentSong.thumbnail || 'https://via.placeholder.com/512?text=Music', sizes: '512x512', type: 'image/png' }
+                    artist: currentSong.artist || 'Unknown Artist',
+                    artwork: currentSong.artwork ? [
+                        { src: currentSong.artwork, sizes: '96x96', type: 'image/png' },
+                        { src: currentSong.artwork, sizes: '128x128', type: 'image/png' },
+                        { src: currentSong.artwork, sizes: '192x192', type: 'image/png' },
+                        { src: currentSong.artwork, sizes: '256x256', type: 'image/png' },
+                        { src: currentSong.artwork, sizes: '384x384', type: 'image/png' },
+                        { src: currentSong.artwork, sizes: '512x512', type: 'image/png' },
+                    ] : [
+                        { src: 'https://via.placeholder.com/512?text=Music', sizes: '512x512', type: 'image/png' }
                     ]
                 });
 
@@ -759,17 +771,61 @@ const MusicPlayer = () => {
 
 
 
-    const handleFileSelect = (e) => {
+    const handleFileSelect = async (e) => {
         const files = Array.from(e.target.files).filter(file => {
             return file.type.startsWith('audio/') ||
                 /\.(mp3|wav|ogg|flac|m4a|aac|wma)$/i.test(file.name);
         });
-        const newSongs = files.map(file => ({
-            title: file.name,
-            artist: 'Unknown Artist',
-            src: URL.createObjectURL(file),
-            type: 'local'
-        }));
+
+        // Use a placeholder first to enable quick feedback, then update with metadata
+        // Actually, we can just process them. It might take a cond to process many.
+        // Let's map them to promises.
+
+        const processFile = (file) => {
+            return new Promise((resolve) => {
+                const url = URL.createObjectURL(file);
+
+                // Default song object
+                const song = {
+                    title: file.name,
+                    artist: 'Unknown Artist',
+                    src: url,
+                    type: 'local',
+                    artwork: null
+                };
+
+                // Try to read tags
+                jsmediatags.read(file, {
+                    onSuccess: (tag) => {
+                        const { tags } = tag;
+                        if (tags) {
+                            song.title = tags.title || file.name;
+                            song.artist = tags.artist || 'Unknown Artist';
+                            if (tags.picture) {
+                                const { data, format } = tags.picture;
+                                let base64String = "";
+                                for (let i = 0; i < data.length; i++) {
+                                    base64String += String.fromCharCode(data[i]);
+                                }
+                                const base64 = `data:${format};base64,${window.btoa(base64String)}`;
+                                song.artwork = base64;
+                                song.thumbnail = base64; // backward compat if used elsewhere
+                            }
+                        }
+                        resolve(song);
+                    },
+                    onError: (error) => {
+                        console.warn("Error reading tags", error);
+                        resolve(song); // Return default on error
+                    }
+                });
+            });
+        };
+
+        const newSongs = await Promise.all(files.map(processFile));
+
+        // Sort songs from A to Z
+        newSongs.sort((a, b) => a.title.localeCompare(b.title));
 
         if (newSongs.length > 0) {
             setSongs(prev => {
@@ -906,8 +962,17 @@ const MusicPlayer = () => {
     return (
         <div className="music-player-container" data-aos="zoom-in">
             <Segment className="player-card">
-                {/* Hidden Audio Element for Background Play */}
-                <audio ref={audioRef} style={{ display: 'none' }} />
+                {/* Hidden Audio Element for Background Play 
+                    attributes like playsInline help with mobile browser policies.
+                    'controls' might be needed for some browsers to recognize it as media, even if hidden.
+                */}
+                <audio
+                    ref={audioRef}
+                    style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
+                    controls
+                    playsInline
+                    webkit-playsinline="true"
+                />
                 <div className="song-info">
                     <h3>{currentSongIndex !== -1 ? songs[currentSongIndex].title : 'Select a Song'}</h3>
                     <p>{currentSongIndex !== -1 ? songs[currentSongIndex].artist : ''}</p>
