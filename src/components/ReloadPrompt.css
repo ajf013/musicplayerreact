@@ -1,0 +1,40 @@
+.ReloadPrompt-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  max-width: 400px;
+}
+
+.ReloadPrompt-toast {
+  display: flex !important;
+  flex-direction: column;
+  padding: 1em !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+  border-radius: 8px !important;
+  animation: slideIn 0.3s ease-out;
+}
+
+.ReloadPrompt-message {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  color: white;
+}
+
+.ReloadPrompt-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

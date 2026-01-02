@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import MusicPlayer from './components/MusicPlayer';
+import ReloadPrompt from './components/ReloadPrompt';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
@@ -34,6 +35,7 @@ function App() {
       <main style={{ flex: 1, padding: '20px' }}>
         <MusicPlayer isMobile={true} /> {/* Assuming mobile-first as requested "on the phone" */}
       </main>
+      <ReloadPrompt />
       <Footer />
     </div>
   );
