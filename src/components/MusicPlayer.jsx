@@ -7,7 +7,7 @@ import MusicTempo from 'music-tempo';
 import { LiveAudioVisualizer } from 'react-audio-visualize';
 import axios from 'axios';
 import YouTubePlayer from './YouTubePlayer';
-import * as jsmediatags from 'jsmediatags';
+import * as musicMetadata from 'music-metadata-browser';
 import './MusicPlayer.css';
 
 const MusicPlayer = () => {
@@ -781,45 +781,37 @@ const MusicPlayer = () => {
         // Actually, we can just process them. It might take a cond to process many.
         // Let's map them to promises.
 
-        const processFile = (file) => {
-            return new Promise((resolve) => {
-                const url = URL.createObjectURL(file);
+        const processFile = async (file) => {
+            const url = URL.createObjectURL(file);
 
-                // Default song object
-                const song = {
-                    title: file.name,
-                    artist: 'Unknown Artist',
-                    src: url,
-                    type: 'local',
-                    artwork: null
-                };
+            // Default song object
+            const song = {
+                title: file.name,
+                artist: 'Unknown Artist',
+                src: url,
+                type: 'local',
+                artwork: null
+            };
 
-                // Try to read tags
-                jsmediatags.read(file, {
-                    onSuccess: (tag) => {
-                        const { tags } = tag;
-                        if (tags) {
-                            song.title = tags.title || file.name;
-                            song.artist = tags.artist || 'Unknown Artist';
-                            if (tags.picture) {
-                                const { data, format } = tags.picture;
-                                let base64String = "";
-                                for (let i = 0; i < data.length; i++) {
-                                    base64String += String.fromCharCode(data[i]);
-                                }
-                                const base64 = `data:${format};base64,${window.btoa(base64String)}`;
-                                song.artwork = base64;
-                                song.thumbnail = base64; // backward compat if used elsewhere
-                            }
-                        }
-                        resolve(song);
-                    },
-                    onError: (error) => {
-                        console.warn("Error reading tags", error);
-                        resolve(song); // Return default on error
+            try {
+                const metadata = await musicMetadata.parseBlob(file);
+                if (metadata && metadata.common) {
+                    song.title = metadata.common.title || file.name;
+                    song.artist = metadata.common.artist || 'Unknown Artist';
+
+                    const cover = musicMetadata.selectCover(metadata.common.picture);
+                    if (cover) {
+                        const base64 = `data:${cover.format};base64,${window.btoa(
+                            String.fromCharCode(...new Uint8Array(cover.data))
+                        )}`;
+                        song.artwork = base64;
+                        song.thumbnail = base64;
                     }
-                });
-            });
+                }
+            } catch (error) {
+                console.warn("Error reading tags", error);
+            }
+            return song;
         };
 
         const newSongs = await Promise.all(files.map(processFile));
