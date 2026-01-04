@@ -26,6 +26,22 @@ export default defineConfig({
             type: 'image/png'
           }
         ],
+        shortcuts: [
+          {
+            name: "Play Local Music",
+            short_name: "Local",
+            description: "Listen to your local files",
+            url: "/?tab=local",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
+          },
+          {
+            name: "Play Online",
+            short_name: "Online",
+            description: "Stream from YouTube",
+            url: "/?tab=online",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
+          }
+        ],
         file_handlers: [
           {
             action: "/",

@@ -9,6 +9,7 @@ import axios from 'axios';
 import YouTubePlayer from './YouTubePlayer';
 import * as musicMetadata from 'music-metadata-browser';
 import './MusicPlayer.css';
+import Lyrics from './Lyrics';
 
 const MusicPlayer = () => {
     const [songs, setSongs] = useState([]);
@@ -17,7 +18,10 @@ const MusicPlayer = () => {
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [loopMode, setLoopMode] = useState('off'); // off, one, all
-    const [activeTab, setActiveTab] = useState(0); // 0: Local, 1: Online
+    const [activeTab, setActiveTab] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('tab') === 'online' ? 1 : 0;
+    }); // 0: Local, 1: Online
     const [volume, setVolume] = useState(0.8); // Default 80%
 
     // Use Ref to track volume to avoid closure staleness in event listeners and loops
@@ -45,6 +49,7 @@ const MusicPlayer = () => {
     const [youTubeVideoId, setYouTubeVideoId] = useState(null);
     const [isYouTube, setIsYouTube] = useState(false);
     const [placeholder, setPlaceholder] = useState('');
+    const [showLyrics, setShowLyrics] = useState(false);
 
     // Typewriter Effect
     useEffect(() => {
@@ -965,34 +970,55 @@ const MusicPlayer = () => {
                     playsInline
                     webkit-playsinline="true"
                 />
-                <div className="song-info">
+                <div className="song-info" style={{ position: 'relative' }}>
                     <h3>{currentSongIndex !== -1 ? songs[currentSongIndex].title : 'Select a Song'}</h3>
                     <p>{currentSongIndex !== -1 ? songs[currentSongIndex].artist : ''}</p>
+                    <Button
+                        icon={showLyrics ? 'music' : 'file text'}
+                        onClick={() => setShowLyrics(!showLyrics)}
+                        size='mini'
+                        circular
+                        inverted
+                        color='violet'
+                        style={{ position: 'absolute', right: 0, top: 0 }}
+                        title={showLyrics ? "Show Visualizer" : "Show Lyrics"}
+                    />
                 </div>
 
-                {/* Visualizer Canvas */}
-                <canvas ref={canvasRef} id="visualizer-canvas" width="600" height="100" style={{ width: '100%', height: '100px', display: 'block', marginBottom: '10px' }}></canvas>
+                {showLyrics ? (
+                    <Lyrics
+                        artist={currentSongIndex !== -1 ? songs[currentSongIndex].artist : ''}
+                        title={currentSongIndex !== -1 ? songs[currentSongIndex].title : ''}
+                        currentTime={currentTime}
+                        isPlaying={isPlaying}
+                    />
+                ) : (
+                    <>
+                        {/* Visualizer Canvas */}
+                        <canvas ref={canvasRef} id="visualizer-canvas" width="600" height="100" style={{ width: '100%', height: '100px', display: 'block', marginBottom: '10px' }}></canvas>
 
-                {/* Audio Analysis Display */}
-                <div className="audio-analysis" style={{ margin: '10px 0' }}>
-                    <Statistic.Group widths='three' size='mini'>
-                        <Statistic>
-                            <Statistic.Value>{audioInfo.bpm}</Statistic.Value>
-                            <Statistic.Label>BPM</Statistic.Label>
-                        </Statistic>
-                        <Statistic>
-                            <Statistic.Value>{audioInfo.key}</Statistic.Value>
-                            <Statistic.Label>Key</Statistic.Label>
-                        </Statistic>
-                        <Statistic>
-                            <Statistic.Value>{audioInfo.signature}</Statistic.Value>
-                            <Statistic.Label>Beat</Statistic.Label>
-                        </Statistic>
-                    </Statistic.Group>
-                </div>
+                        {/* Audio Analysis Display */}
+                        <div className="audio-analysis" style={{ margin: '10px 0' }}>
+                            <Statistic.Group widths='three' size='mini'>
+                                <Statistic>
+                                    <Statistic.Value>{audioInfo.bpm}</Statistic.Value>
+                                    <Statistic.Label>BPM</Statistic.Label>
+                                </Statistic>
+                                <Statistic>
+                                    <Statistic.Value>{audioInfo.key}</Statistic.Value>
+                                    <Statistic.Label>Key</Statistic.Label>
+                                </Statistic>
+                                <Statistic>
+                                    <Statistic.Value>{audioInfo.signature}</Statistic.Value>
+                                    <Statistic.Label>Beat</Statistic.Label>
+                                </Statistic>
+                            </Statistic.Group>
+                        </div>
 
-                <div id="waveform" ref={waveformRef} className="waveform-container" style={{ display: isYouTube ? 'none' : 'block' }}></div>
-                <div id="timeline" ref={timelineRef} className="timeline-container" style={{ display: isYouTube ? 'none' : 'block' }}></div>
+                        <div id="waveform" ref={waveformRef} className="waveform-container" style={{ display: isYouTube ? 'none' : 'block' }}></div>
+                        <div id="timeline" ref={timelineRef} className="timeline-container" style={{ display: isYouTube ? 'none' : 'block' }}></div>
+                    </>
+                )}
 
                 {/* YouTube Player (Hidden but active) */}
                 <YouTubePlayer
