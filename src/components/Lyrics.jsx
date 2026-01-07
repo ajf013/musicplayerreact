@@ -10,12 +10,26 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
     const activeLineRef = useRef(null);
     const containerRef = useRef(null);
 
+    const getActiveLineIndex = () => {
+        if (!synced) return -1;
+        // Find the last line where time <= currentTime
+        // Binary search or simple findLastIndex would work. Simple loop for now.
+        for (let i = lyrics.length - 1; i >= 0; i--) {
+            if (currentTime >= lyrics[i].time) {
+                return i;
+            }
+        }
+        return -1;
+    };
+
+    const activeIndex = getActiveLineIndex();
+
     useEffect(() => {
-        if (artist && title) {
+        if (title) {
             fetchLyrics();
         } else {
             setLyrics([]);
-            setError("No song details available");
+            setError("No song loaded");
         }
     }, [artist, title]);
 
@@ -26,7 +40,7 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
                 block: 'center',
             });
         }
-    }, [currentTime]);
+    }, [activeIndex]); // Only scroll when the active line changes
 
     const fetchLyrics = async () => {
         setLoading(true);
@@ -34,39 +48,91 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
         setLyrics([]);
         setSynced(false);
 
+        console.log(`[Lyrics] Fetching for Artist: "${artist}", Title: "${title}"`);
+
         try {
-            // First try specific search
-            let response = await axios.get('https://lrclib.net/api/get', {
-                params: {
-                    artist_name: artist,
-                    track_name: title,
-                }
-            });
+            // Helper to clean title
+            const cleanTitle = (t) => t
+                .replace(/\(.*\)|\[.*\]/g, '') // Remove whatever is in brackets
+                .split('|')[0] // Remove everything after pipe
+                .replace(/- topic|official video|official audio|lyrics|official|video|audio/gi, '') // Remove clutter
+                .trim();
 
-            if (!response.data || (!response.data.syncedLyrics && !response.data.plainLyrics)) {
-                // If specific get fails, try search
-                const searchResponse = await axios.get('https://lrclib.net/api/search', {
-                    params: {
-                        q: `${artist} ${title}`
+            let responseData = null;
+            let successStrategy = '';
+
+            // Strategy 1: Specific Get (Artist + Title) - Best for correct metadata
+            if (!responseData) {
+                try {
+                    const res = await axios.get('https://lrclib.net/api/get', {
+                        params: {
+                            artist_name: artist !== 'Unknown Artist' ? artist : '',
+                            track_name: cleanTitle(title),
+                        }
+                    });
+                    if (res.data) {
+                        responseData = res.data;
+                        successStrategy = 'Specific Get';
                     }
-                });
-
-                if (searchResponse.data && searchResponse.data.length > 0) {
-                    response = { data: searchResponse.data[0] };
-                }
+                } catch (e) { /* Ignore 404 */ }
             }
 
-            if (response.data) {
-                if (response.data.syncedLyrics) {
-                    setLyrics(parseLrc(response.data.syncedLyrics));
+            // Strategy 2: Search with Original Metadata
+            if (!responseData) {
+                const query = `${artist !== 'Unknown Artist' ? artist : ''} ${cleanTitle(title)}`.trim();
+                try {
+                    const res = await axios.get('https://lrclib.net/api/search', { params: { q: query } });
+                    if (res.data && res.data.length > 0) {
+                        responseData = res.data[0];
+                        successStrategy = 'Search Original';
+                    }
+                } catch (e) { console.warn("Search Original failed", e); }
+            }
+
+            // Strategy 3: Split Title (If YouTube Title = "Artist - Track")
+            if (!responseData && title.includes('-')) {
+                const parts = title.split('-');
+                const potentialArtist = parts[0].trim();
+                const potentialTitle = cleanTitle(parts.slice(1).join('-')).trim();
+                const query = `${potentialArtist} ${potentialTitle}`;
+
+                console.log(`[Lyrics] Trying Split Strategy: "${potentialArtist}" - "${potentialTitle}"`);
+                try {
+                    const res = await axios.get('https://lrclib.net/api/search', { params: { q: query } });
+                    if (res.data && res.data.length > 0) {
+                        responseData = res.data[0];
+                        successStrategy = 'Search Split';
+                    }
+                } catch (e) { console.warn("Search Split failed", e); }
+            }
+
+            // Strategy 4: Search Title Only (Fallback)
+            if (!responseData) {
+                const query = cleanTitle(title);
+                console.log(`[Lyrics] Trying Title Only Strategy: "${query}"`);
+                try {
+                    const res = await axios.get('https://lrclib.net/api/search', { params: { q: query } });
+                    if (res.data && res.data.length > 0) {
+                        responseData = res.data[0];
+                        successStrategy = 'Search Title Only';
+                    }
+                } catch (e) { console.warn("Search Title Only failed", e); }
+            }
+
+
+            if (responseData) {
+                console.log(`[Lyrics] Success using strategy: ${successStrategy}`, responseData);
+                if (responseData.syncedLyrics) {
+                    setLyrics(parseLrc(responseData.syncedLyrics));
                     setSynced(true);
-                } else if (response.data.plainLyrics) {
-                    setLyrics([{ time: 0, text: response.data.plainLyrics }]);
+                } else if (responseData.plainLyrics) {
+                    setLyrics([{ time: 0, text: responseData.plainLyrics }]);
                     setSynced(false);
                 } else {
-                    setError("Lyrics not found");
+                    setError("Lyrics not found (empty content)");
                 }
             } else {
+                console.warn("[Lyrics] All strategies failed");
                 setError("Lyrics not found");
             }
 
@@ -100,22 +166,10 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
         return parsed;
     };
 
-    const getActiveLineIndex = () => {
-        if (!synced) return -1;
-        // Find the last line where time <= currentTime
-        // Binary search or simple findLastIndex would work. Simple loop for now.
-        for (let i = lyrics.length - 1; i >= 0; i--) {
-            if (currentTime >= lyrics[i].time) {
-                return i;
-            }
-        }
-        return -1;
-    };
 
-    const activeIndex = getActiveLineIndex();
 
     return (
-        <Segment inverted className="lyrics-container" style={{ height: '300px', overflowY: 'auto', textAlign: 'center' }} ref={containerRef}>
+        <Segment inverted className="lyrics-container" style={{ height: '300px', overflowY: 'auto', textAlign: 'center', scrollBehavior: 'smooth' }} ref={containerRef}>
             {loading && <Loader active inline="centered" inverted>Loading Lyrics...</Loader>}
 
             {!loading && error && (
@@ -135,13 +189,14 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
                                 key={index}
                                 ref={isActive ? activeLineRef : null}
                                 style={{
-                                    opacity: isActive ? 1 : 0.5,
-                                    transform: isActive ? 'scale(1.05)' : 'scale(1)',
-                                    transition: 'all 0.3s ease',
+                                    opacity: isActive ? 1 : 0.6,
+                                    transform: isActive ? 'scale(1.1)' : 'scale(1)',
+                                    transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
                                     fontWeight: isActive ? 'bold' : 'normal',
-                                    padding: '5px 0',
+                                    padding: '8px 0',
                                     margin: 0,
-                                    color: isActive ? '#a78bfa' : 'white'
+                                    color: isActive ? '#a78bfa' : '#ccc',
+                                    textShadow: isActive ? '0 0 10px rgba(167, 139, 250, 0.5)' : 'none'
                                 }}
                             >
                                 {line.text}

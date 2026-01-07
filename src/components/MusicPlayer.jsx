@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Icon, Button, Tab, List, Segment, Label, Statistic } from 'semantic-ui-react';
+import { Icon, Button, Tab, List, Segment, Label, Statistic, Message } from 'semantic-ui-react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js';
@@ -50,6 +50,15 @@ const MusicPlayer = () => {
     const [isYouTube, setIsYouTube] = useState(false);
     const [placeholder, setPlaceholder] = useState('');
     const [showLyrics, setShowLyrics] = useState(false);
+    const [usingMockData, setUsingMockData] = useState(false);
+
+    // Initial check for YouTube API Key
+    useEffect(() => {
+        const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+        if (!apiKey) {
+            // setUsingMockData(true); // Disable mock data mode
+        }
+    }, []);
 
     // Typewriter Effect
     useEffect(() => {
@@ -250,16 +259,17 @@ const MusicPlayer = () => {
         if ('mediaSession' in navigator) {
             const currentSong = songs[currentSongIndex];
             if (currentSong) {
+                const artworkUrl = currentSong.thumbnail || currentSong.artwork;
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: currentSong.title,
                     artist: currentSong.artist || 'Unknown Artist',
-                    artwork: currentSong.artwork ? [
-                        { src: currentSong.artwork, sizes: '96x96', type: 'image/png' },
-                        { src: currentSong.artwork, sizes: '128x128', type: 'image/png' },
-                        { src: currentSong.artwork, sizes: '192x192', type: 'image/png' },
-                        { src: currentSong.artwork, sizes: '256x256', type: 'image/png' },
-                        { src: currentSong.artwork, sizes: '384x384', type: 'image/png' },
-                        { src: currentSong.artwork, sizes: '512x512', type: 'image/png' },
+                    artwork: artworkUrl ? [
+                        { src: artworkUrl, sizes: '96x96', type: 'image/png' },
+                        { src: artworkUrl, sizes: '128x128', type: 'image/png' },
+                        { src: artworkUrl, sizes: '192x192', type: 'image/png' },
+                        { src: artworkUrl, sizes: '256x256', type: 'image/png' },
+                        { src: artworkUrl, sizes: '384x384', type: 'image/png' },
+                        { src: artworkUrl, sizes: '512x512', type: 'image/png' },
                     ] : [
                         { src: 'https://via.placeholder.com/512?text=Music', sizes: '512x512', type: 'image/png' }
                     ]
@@ -554,20 +564,12 @@ const MusicPlayer = () => {
         const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 
         // Fallback to Mock Data if no Key (for testing/demo)
+        // Fallback to Mock Data if no Key (for testing/demo)
         if (!API_KEY) {
-            console.warn("No YouTube API Key found. Using Mock Data.");
-            // Simulate network delay
-            setTimeout(() => {
-                // If query 'looks' like it wants specific results (based on user's recent edit context), we can't really guess, 
-                // but we'll return the standard value or filtered if possible.
-                // For now, return standard demo set.
-                setSearchResults([
-                    { title: "Lofi Girl - beats to relax/study to", artist: "Lofi Girl", src: "jfKfPfyJRdk", type: 'youtube', thumbnail: "https://img.youtube.com/vi/jfKfPfyJRdk/default.jpg" },
-                    { title: "Synthwave Radio - beats to chill/game to", artist: "Lofi Girl", src: "MV_3Dpw-BRY", type: 'youtube', thumbnail: "https://img.youtube.com/vi/MV_3Dpw-BRY/default.jpg" },
-                    { title: "Mozart - Classical Music for Studying", artist: "HALIDONMUSIC", src: "Rb0UmrCXxVA", type: 'youtube', thumbnail: "https://img.youtube.com/vi/Rb0UmrCXxVA/default.jpg" }
-                ]);
-                setIsSearching(false);
-            }, 300);
+            console.warn("No YouTube API Key found. Please add VITE_YOUTUBE_API_KEY to .env");
+            // Mock Data Removed as per user request to use real API
+            setSearchResults([]);
+            setIsSearching(false);
             return;
         }
 
@@ -594,10 +596,7 @@ const MusicPlayer = () => {
             setSearchResults(results.filter(r => r.src));
         } catch (error) {
             console.error("YouTube Search Error", error);
-            // Fallback to mock on error too
-            setSearchResults([
-                { title: "Error: Check API Key / Quota", artist: "System", src: "jfKfPfyJRdk", type: 'youtube', thumbnail: "https://img.youtube.com/vi/jfKfPfyJRdk/default.jpg" }
-            ]);
+            setSearchResults([]); // No mock fallback on error
         } finally {
             setIsSearching(false);
         }
@@ -906,6 +905,17 @@ const MusicPlayer = () => {
         {
             menuItem: 'Online (YouTube)', render: () => (
                 <Tab.Pane attached={false} style={{ background: 'transparent', border: 'none', boxShadow: 'none' }}>
+                    {usingMockData && (
+                        <div style={{ maxWidth: '800px', margin: '0 auto 15px auto', width: '100%' }}>
+                            <Message warning compact icon>
+                                <Icon name='warning sign' />
+                                <Message.Content>
+                                    <Message.Header>Mock Data Mode Active</Message.Header>
+                                    <p>YouTube search is currently using simulated data because the API Key is missing. Specific searches will not return real results.</p>
+                                </Message.Content>
+                            </Message>
+                        </div>
+                    )}
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', maxWidth: '800px', margin: '0 auto 15px auto', width: '100%' }}>
                         <div className="ui fluid input" style={{ flex: 1 }}>
                             <input
@@ -970,19 +980,18 @@ const MusicPlayer = () => {
                     playsInline
                     webkit-playsinline="true"
                 />
-                <div className="song-info" style={{ position: 'relative' }}>
-                    <h3>{currentSongIndex !== -1 ? songs[currentSongIndex].title : 'Select a Song'}</h3>
-                    <p>{currentSongIndex !== -1 ? songs[currentSongIndex].artist : ''}</p>
-                    <Button
-                        icon={showLyrics ? 'music' : 'file text'}
-                        onClick={() => setShowLyrics(!showLyrics)}
-                        size='mini'
-                        circular
-                        inverted
-                        color='violet'
-                        style={{ position: 'absolute', right: 0, top: 0 }}
-                        title={showLyrics ? "Show Visualizer" : "Show Lyrics"}
-                    />
+                <div className="song-info" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px', gap: '15px' }}>
+                    {currentSongIndex !== -1 && (songs[currentSongIndex].thumbnail || songs[currentSongIndex].artwork) && (
+                        <img
+                            src={songs[currentSongIndex].thumbnail || songs[currentSongIndex].artwork}
+                            alt="Album Art"
+                            style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}
+                        />
+                    )}
+                    <div style={{ textAlign: 'left' }}>
+                        <h3 style={{ margin: 0 }}>{currentSongIndex !== -1 ? songs[currentSongIndex].title : 'Select a Song'}</h3>
+                        <p style={{ margin: 0, opacity: 0.8 }}>{currentSongIndex !== -1 ? songs[currentSongIndex].artist : ''}</p>
+                    </div>
                 </div>
 
                 {showLyrics ? (
@@ -995,7 +1004,7 @@ const MusicPlayer = () => {
                 ) : (
                     <>
                         {/* Visualizer Canvas */}
-                        <canvas ref={canvasRef} id="visualizer-canvas" width="600" height="100" style={{ width: '100%', height: '100px', display: 'block', marginBottom: '10px' }}></canvas>
+                        <canvas ref={canvasRef} id="visualizer-canvas" width="600" height="100" style={{ width: '100%', maxWidth: '100%', height: '100px', display: 'block', marginBottom: '10px' }}></canvas>
 
                         {/* Audio Analysis Display */}
                         <div className="audio-analysis" style={{ margin: '10px 0' }}>
@@ -1101,6 +1110,7 @@ const MusicPlayer = () => {
                         <Icon name='step backward' />
                         <span style={btnLabelStyle}>Prev</span>
                     </Button>
+
                     {/* Skip Backward 10s */}
                     <Button icon circular size='large' onClick={handleSkipBackward} title="Backward 10s" style={{ position: 'relative' }}>
                         <Icon name='undo' />
@@ -1122,9 +1132,16 @@ const MusicPlayer = () => {
                         <Icon name='step forward' />
                         <span style={btnLabelStyle}>Next</span>
                     </Button>
+
+                    {/* Lyrics Toggle Button */}
+                    <Button icon circular size='large' onClick={() => setShowLyrics(!showLyrics)} color={showLyrics ? 'teal' : null} style={{ position: 'relative' }} title="Toggle Lyrics">
+                        <Icon name='file alternate' />
+                        <span style={btnLabelStyle}>Lyrics</span>
+                    </Button>
                 </div>
 
-                <div className="ab-controls" style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '10px' }}>
+                <div className="ab-controls" style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ width: '1px', background: '#ccc', margin: '0 5px', display: 'none' }}></div>
                     <Button size='small' onClick={handleSetA} disabled={isYouTube}>Set A</Button>
                     <Button size='small' onClick={handleSetB} disabled={isYouTube}>Set B</Button>
                     <Button icon='trash' size='small' onClick={clearAB} disabled={isYouTube} />

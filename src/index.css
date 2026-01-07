@@ -4,6 +4,29 @@
   --primary-color: #646cff;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  /* Prevent horizontal scroll "whitespace" */
+}
+
+/* Prevent iOS auto-zoom on inputs */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
 [data-theme='dark'] {
   --background-color: #242424;
   --text-color: rgba(255, 255, 255, 0.87);

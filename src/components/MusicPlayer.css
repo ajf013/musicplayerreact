@@ -48,6 +48,24 @@
     margin-top: 5px;
 }
 
+.view-toggle-btn {
+    opacity: 0.7;
+    transition: opacity 0.3s !important;
+}
+
+.view-toggle-btn:hover {
+    opacity: 1 !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme='dark'] .view-toggle-btn {
+    color: #fff !important;
+}
+
+[data-theme='dark'] .view-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
 /* Updated for Waveform */
 .waveform-container {
     width: 100%;
@@ -71,6 +89,15 @@
     align-items: center;
     gap: 15px;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens */
+}
+
+@media (max-width: 480px) {
+    .controls {
+        gap: 8px;
+        /* Reduce gap on mobile */
+    }
 }
 
 .ab-controls {

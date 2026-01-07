@@ -14,6 +14,10 @@ export default defineConfig({
         short_name: 'MusicPlayer',
         description: 'A modern PWA Music Player',
         theme_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        background_color: '#ffffff',
+        start_url: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
