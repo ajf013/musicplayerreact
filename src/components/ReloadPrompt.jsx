@@ -1,28 +1,28 @@
 import React from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
+// import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Button, Segment, Header, Icon } from 'semantic-ui-react';
 import './ReloadPrompt.css';
 
 function ReloadPrompt() {
-    const {
-        offlineReady: [offlineReady, setOfflineReady],
-        needRefresh: [needRefresh, setNeedRefresh],
-        updateServiceWorker,
-    } = useRegisterSW({
-        onRegistered(r) {
-            // console.log('SW Registered: ' + r)
-        },
-        onRegisterError(error) {
-            console.log('SW registration error', error)
-        },
-    });
+    // const {
+    //     offlineReady: [offlineReady, setOfflineReady],
+    //     needRefresh: [needRefresh, setNeedRefresh],
+    //     updateServiceWorker,
+    // } = useRegisterSW({
+    //     onRegistered(r) {
+    //         // console.log('SW Registered: ' + r)
+    //     },
+    //     onRegisterError(error) {
+    //         console.log('SW registration error', error)
+    //     },
+    // });
 
-    const close = () => {
-        setOfflineReady(false);
-        setNeedRefresh(false);
-    };
+    // const close = () => {
+    //     setOfflineReady(false);
+    //     setNeedRefresh(false);
+    // };
 
-    return (
+    return null; /*
         <div className="ReloadPrompt-container">
             {(offlineReady || needRefresh) && (
                 <Segment inverted color="violet" className="ReloadPrompt-toast">
@@ -59,7 +59,7 @@ function ReloadPrompt() {
                 </Segment>
             )}
         </div>
-    );
+    */
 }
 
 export default ReloadPrompt;

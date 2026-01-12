@@ -6,8 +6,8 @@ const YouTubePlayer = ({ videoId, isPlaying, volume, onReady, onEnd, onStateChan
 
     // Options for the player
     const opts = {
-        height: '0', // Hidden player
-        width: '0',
+        height: '1', // Minimize player but keep it technically visible
+        width: '1',
         playerVars: {
             // https://developers.google.com/youtube/player_parameters
             autoplay: 1,

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "start": "vite",
     "build": "vite build",
     "lint": "eslint .",
@@ -13,6 +13,7 @@
   "dependencies": {
     "aos": "^2.3.4",
     "axios": "^1.13.2",
+    "idb": "^8.0.3",
     "music-metadata-browser": "^2.5.11",
     "music-tempo": "^1.0.3",
     "react": "^18.3.1",
@@ -29,6 +30,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

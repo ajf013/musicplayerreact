@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import MusicPlayer from './components/MusicPlayer';
+import ErrorBoundary from './components/ErrorBoundary';
 import ReloadPrompt from './components/ReloadPrompt';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
@@ -33,7 +34,9 @@ function App() {
     <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header theme={theme} toggleTheme={toggleTheme} />
       <main style={{ flex: 1, padding: '10px', width: '100%', boxSizing: 'border-box' }}>
-        <MusicPlayer isMobile={true} /> {/* Assuming mobile-first as requested "on the phone" */}
+        <ErrorBoundary>
+          <MusicPlayer isMobile={true} /> {/* Assuming mobile-first as requested "on the phone" */}
+        </ErrorBoundary>
       </main>
       <ReloadPrompt />
       <Footer />
