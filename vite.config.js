@@ -46,6 +46,30 @@ export default defineConfig({
             icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
           }
         ],
+        widgets: [
+          {
+            name: "Music Player",
+            short_name: "Player",
+            description: "Music Player Controls",
+            tag: "music-player",
+            ms_ac_template: "widgets/widget.json",
+            data: "widgets/widget.json",
+            type: "application/json",
+            screenshots: [
+              {
+                src: "pwa-512x512.png",
+                sizes: "512x512",
+                label: "Player Widget"
+              }
+            ],
+            icons: [
+              {
+                src: "pwa-192x192.png",
+                sizes: "192x192"
+              }
+            ]
+          }
+        ],
         file_handlers: [
           {
             action: "/",

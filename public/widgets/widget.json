@@ -1,0 +1,16 @@
+{
+    "name": "Music Player",
+    "short_name": "Player",
+    "icons": [
+        {
+            "src": "/pwa-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ],
+    "tag": "music-player",
+    "template": "player",
+    "data": {
+        "source": "/"
+    }
+}
