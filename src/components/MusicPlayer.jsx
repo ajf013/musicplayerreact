@@ -1214,6 +1214,12 @@ const MusicPlayer = () => {
                         />
                         <div className="time-row">
                             <span>{formatTime(currentTime)}</span>
+                            {/* Data Usage Estimate */}
+                            {isYouTube && duration > 0 && (
+                                <span style={{ color: '#aaa', fontSize: '10px' }}>
+                                    Est. Data: ~{((duration / 60) * 1.5).toFixed(1)} MB
+                                </span>
+                            )}
                             <span>{formatTime(duration)}</span>
                         </div>
                     </div>
