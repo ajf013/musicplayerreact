@@ -359,8 +359,8 @@
     .artwork-container {
         padding: 10px 20px;
         /* Reduce height to ensure controls fit */
-        max-height: 28vh;
-        min-height: 180px;
+        max-height: 25vh;
+        min-height: 150px;
         flex-shrink: 1;
     }
 
@@ -373,33 +373,79 @@
     }
 
     .song-title {
-        font-size: 20px;
-        margin-bottom: 4px;
+        font-size: 18px;
+        margin-bottom: 2px;
     }
 
     .song-artist {
-        font-size: 14px;
+        font-size: 13px;
     }
 
-    .control-btn {
-        font-size: 20px;
-        padding: 8px;
+    /* Compact Controls Grid */
+    .controls-grid {
+        gap: 8px;
+        padding: 5px 10px;
     }
 
-    .play-pause-btn {
-        width: 56px;
-        height: 56px;
-        font-size: 24px;
+    button.control-btn {
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        border-radius: 50% !important;
+        font-size: 16px;
+        padding: 0 !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(255, 255, 255, 0.1);
+        flex-direction: row !important;
+        /* Override inline column */
+    }
+
+    button.control-btn span {
+        display: none !important;
+        font-size: 0 !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    button.play-pause-btn {
+        width: 42px !important;
+        height: 42px !important;
+        min-width: 42px !important;
+        min-height: 42px !important;
+        font-size: 18px;
+        border-radius: 50% !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: row !important;
+        /* Override inline column */
+        padding: 0 !important;
+    }
+
+    button.play-pause-btn span {
+        display: none !important;
+        font-size: 0 !important;
+        visibility: hidden !important;
     }
 
     .action-btn {
-        font-size: 20px;
-        padding: 8px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        font-size: 16px;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 
     .info-container {
-        margin-bottom: 10px;
-        padding: 0 20px;
+        margin-bottom: 5px;
+        padding: 0 15px;
     }
 
     .action-bar {
@@ -409,5 +455,6 @@
 
     .progress-container {
         margin-bottom: 5px;
+        padding: 0 15px;
     }
 }

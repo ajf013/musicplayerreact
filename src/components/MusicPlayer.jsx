@@ -912,7 +912,7 @@ const MusicPlayer = () => {
 
             {/* Top Bar */}
             <div className="player-header">
-                <Icon name='angle down' size='large' onClick={() => setIsPlayerView(false)} style={{ cursor: 'pointer' }} />
+                <Icon name='arrow left' size='large' onClick={() => setIsPlayerView(false)} style={{ cursor: 'pointer' }} />
                 <div style={{ display: 'flex', gap: '15px' }}>
 
                 </div>
@@ -1215,9 +1215,9 @@ const MusicPlayer = () => {
                         <div className="time-row">
                             <span>{formatTime(currentTime)}</span>
                             {/* Data Usage Estimate */}
-                            {isYouTube && duration > 0 && (
+                            {isYouTube && (
                                 <span style={{ color: '#aaa', fontSize: '10px' }}>
-                                    Est. Data: ~{((duration / 60) * 1.5).toFixed(1)} MB
+                                    Est. Data: ~{((duration || 0) / 60 * 1.5).toFixed(1)} MB
                                 </span>
                             )}
                             <span>{formatTime(duration)}</span>
