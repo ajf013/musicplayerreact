@@ -9,6 +9,7 @@ import 'aos/dist/aos.css';
 
 function App() {
   const [theme, setTheme] = useState('light');
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     AOS.init({
@@ -21,6 +22,11 @@ function App() {
       setTheme(savedTheme);
       document.body.setAttribute('data-theme', savedTheme);
     }
+
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
   }, []);
 
   const toggleTheme = () => {
@@ -29,6 +35,28 @@ function App() {
     localStorage.setItem('theme', newTheme);
     document.body.setAttribute('data-theme', newTheme);
   };
+
+  if (showSplash) {
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+        background: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999, transition: 'opacity 0.5s ease-out'
+      }}>
+        <div data-aos="zoom-in">
+          {/* Using default treble clef icon or image */}
+          <div style={{ fontSize: '80px', marginBottom: '20px' }}>🎵</div>
+          <h1 style={{
+            color: theme === 'dark' ? '#fff' : '#333',
+            fontFamily: 'Inter, sans-serif',
+            letterSpacing: '2px'
+          }}>Music Player</h1>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

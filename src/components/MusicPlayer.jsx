@@ -6,7 +6,9 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js';
 import MusicTempo from 'music-tempo';
 import { LiveAudioVisualizer } from 'react-audio-visualize';
+import { openDB } from 'idb';
 // import axios from 'axios'; // Removed
+import defaultArtwork from '../assets/default_artwork.png';
 import YouTubePlayer from './YouTubePlayer';
 import * as musicMetadata from 'music-metadata-browser';
 import './MusicPlayer.css';
@@ -44,6 +46,8 @@ const MusicPlayer = () => {
     const [placeholder, setPlaceholder] = useState('');
     const [showLyrics, setShowLyrics] = useState(false);
     const [usingMockData, setUsingMockData] = useState(false);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
 
     // View & Ref State
     const [isPlayerView, setIsPlayerView] = useState(false);
@@ -71,10 +75,13 @@ const MusicPlayer = () => {
     // IndexedDB Helper
     const initDB = async () => {
         try {
-            const db = await openDB('MusicPlayerDB', 1, {
+            const db = await openDB('MusicPlayerDB', 2, {
                 upgrade(db) {
                     if (!db.objectStoreNames.contains('songs')) {
                         db.createObjectStore('songs', { keyPath: 'id', autoIncrement: true });
+                    }
+                    if (!db.objectStoreNames.contains('settings')) {
+                        db.createObjectStore('settings');
                     }
                 },
             });
@@ -89,14 +96,151 @@ const MusicPlayer = () => {
     // Load saved songs from Backend
     // Load saved songs removed (No persistence requested, purely local session)
     // Or if user meant "files uploaded... from device", implies session-based "Open File".
+    // Permission Check & Auto-Load
     useEffect(() => {
-        // Clear songs on reload if we want strict "no backend".
-        // Or if we want to keep IDB for local persistence (without backend), we could.
-        // But user said "no backend is required". IDB is frontend.
-        // User also said "remove downloads option".
-        // I will assume NO persistence for now to keep it simple and clean as requested "uploaded... from device... play automatically".
-        // So on refresh, it's empty.
-    }, []);
+        const checkPermission = async () => {
+            const hasAccess = localStorage.getItem('hasFolderAccess');
+            if (!hasAccess) {
+                // First launch (or reset): Show modal
+                if (viewMode === 'local') setShowPermissionModal(true);
+            } else {
+                // Has access flag, try to recover handle silently
+                try {
+                    const db = await initDB();
+                    const dirHandle = await db.get('settings', 'dirHandle');
+                    if (dirHandle) {
+                        const opts = { mode: 'read' };
+                        // Silent verify
+                        if ((await dirHandle.queryPermission(opts)) === 'granted') {
+                            if (viewMode === 'local' && songs.length === 0) {
+                                scanAndLoad(dirHandle);
+                            }
+                        }
+                        // If not granted, we can't request in useEffect (needs gesture).
+                        // Wait for user to click 'Local' button (enterLocalMode)
+                    } else {
+                        // Flag exists but no handle in IDB (maybe cleared). Reset.
+                        localStorage.removeItem('hasFolderAccess');
+                        if (viewMode === 'local') setShowPermissionModal(true);
+                    }
+                } catch (e) {
+                    console.error("Error restoring handle", e);
+                }
+            }
+        };
+        // Run on mount AND when switching to local
+        if (viewMode === 'local') checkPermission();
+    }, [viewMode]);
+
+    const scanDirectory = async (dirHandle, fileList = []) => {
+        for await (const entry of dirHandle.values()) {
+            if (entry.kind === 'file') {
+                if (/\.(mp3|wav|ogg|flac|m4a|aac|wma)$/i.test(entry.name)) {
+                    const file = await entry.getFile();
+                    fileList.push(file);
+                }
+            } else if (entry.kind === 'directory') {
+                await scanDirectory(entry, fileList);
+            }
+        }
+        return fileList;
+    };
+
+    const scanAndLoad = async (dirHandle) => {
+        setIsScanning(true);
+        try {
+            const files = await scanDirectory(dirHandle);
+            // Process files (MusicPlayer.handleFileSelect logic reuse?)
+            // We need to parse blobs.
+            const processFile = async (file) => {
+                let title = file.name.replace(/\.[^/.]+$/, "");
+                let artist = "Unknown Artist";
+                let duration = 0;
+                let artwork = null;
+                try {
+                    const metadata = await musicMetadata.parseBlob(file);
+                    title = metadata.common.title || title;
+                    artist = metadata.common.artist || artist;
+                    duration = metadata.format.duration || 0;
+                    const cover = musicMetadata.selectCover(metadata.common.picture);
+                    if (cover) {
+                        artwork = `data:${cover.format};base64,${window.btoa(
+                            String.fromCharCode(...new Uint8Array(cover.data))
+                        )}`;
+                    }
+                } catch (e) { console.warn("Meta fail", e); }
+                return { title, artist, src: URL.createObjectURL(file), thumbnail: artwork || defaultArtwork, duration, type: 'local', isSaved: false };
+            };
+
+            // Limit concurrent processing if too many files?
+            // For now, Promise.all might be heavy if 1000s of songs.
+            // Using batching or sequential for large lists recommended.
+            // For simplicity in this step, taking first 50 or ensuring user import is handled.
+            // User said "folder of 10 files".
+            const results = await Promise.all(files.map(processFile));
+            const newSongs = results.sort((a, b) => a.title.localeCompare(b.title));
+            if (newSongs.length > 0) {
+                setSongs(prev => [...prev, ...newSongs]);
+                setViewMode('local');
+            }
+        } catch (e) {
+            console.error("Scan failed", e);
+        } finally {
+            setIsScanning(false);
+        }
+    };
+
+    const handleGrantAccess = async () => {
+        try {
+            // 'window.showDirectoryPicker' is experimental
+            if ('showDirectoryPicker' in window) {
+                const dirHandle = await window.showDirectoryPicker({
+                    id: 'music_folder',
+                    mode: 'read'
+                });
+                const db = await initDB();
+                await db.put('settings', dirHandle, 'dirHandle');
+                localStorage.setItem('hasFolderAccess', 'true');
+                setShowPermissionModal(false);
+                await scanAndLoad(dirHandle);
+            } else {
+                alert("Your browser does not support Folder Access API. Please use the Import Folder button.");
+                setShowPermissionModal(false);
+            }
+        } catch (e) {
+            console.error("Access denied or error", e);
+            // User cancelled
+        }
+    };
+
+    const enterLocalMode = async () => {
+        setViewMode('local');
+        // Try to restore access immediately with user gesture
+        try {
+            const db = await initDB();
+            const dirHandle = await db.get('settings', 'dirHandle');
+            if (dirHandle) {
+                const opts = { mode: 'read' };
+                if ((await dirHandle.queryPermission(opts)) === 'granted') {
+                    if (songs.length === 0) await scanAndLoad(dirHandle);
+                } else {
+                    // Request permission (allowed here due to click)
+                    if ((await dirHandle.requestPermission(opts)) === 'granted') {
+                        if (songs.length === 0) await scanAndLoad(dirHandle);
+                    } else {
+                        // User denied re-request, show modal to explain or restart
+                        setShowPermissionModal(true);
+                    }
+                }
+            } else {
+                // No handle found (despite maybe flag being set?), show modal
+                setShowPermissionModal(true);
+            }
+        } catch (e) {
+            console.error("Error entering local mode", e);
+            setShowPermissionModal(true); // Fallback
+        }
+    };
 
     const saveCurrentSong = async () => {
         // Disabled/Removed feature
@@ -225,11 +369,13 @@ const MusicPlayer = () => {
                     // Attempt to load
                     try {
                         await wavesurfer.current.load(song.src);
-                        // Auto-play is handled by 'ready' event or manually here
-                        // wavesurfer.current.play(); // Let 'ready' handle it
+                        // Force Play logic
+                        if (isPlaying) {
+                            wavesurfer.current.play().catch(e => console.warn("Auto-play blocked", e));
+                        }
                     } catch (e) {
                         console.error("WaveSurfer synchronous load error:", e);
-                        alert("Failed to load audio: " + e.message);
+                        // alert("Failed to load audio: " + e.message); // Suppress alert for smooth list transitions?
                     }
                 }
             }
@@ -665,23 +811,23 @@ const MusicPlayer = () => {
         }
     }, []);
 
-    // Visualizer Effect
+    // Visualizer Effect (Optimized)
     useEffect(() => {
         if (!canvasRef.current) return;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         let animationId;
+        const bufferLength = 64;
+        const dataArray = new Uint8Array(bufferLength); // Allocate once
+
         const drawVisualizer = () => {
             const isDark = document.body.getAttribute('data-theme') === 'dark';
             const barColor = isDark ? '167, 139, 250' : '16, 185, 129';
             const width = canvas.width;
             const height = canvas.height;
             ctx.clearRect(0, 0, width, height);
-            let dataArray;
-            let bufferLength;
+
             if (isYouTube && isPlaying) {
-                bufferLength = 64;
-                dataArray = new Uint8Array(bufferLength);
                 const time = Date.now() / 300;
                 for (let i = 0; i < bufferLength; i++) {
                     const offset = i / bufferLength * Math.PI * 4;
@@ -691,25 +837,19 @@ const MusicPlayer = () => {
                     dataArray[i] = Math.max(0, Math.min(255, wave1 + wave2 + noise));
                 }
             } else if (wavesurfer.current) {
-                try {
-                    // Fallback to simulated for now
-                    bufferLength = 64;
-                    dataArray = new Uint8Array(bufferLength);
-                    const time = Date.now() / 300;
-                    for (let i = 0; i < bufferLength; i++) {
-                        const offset = i / bufferLength * Math.PI * 4;
-                        const wave1 = Math.sin(time + offset) * 100 + 100;
-                        const wave2 = Math.cos(time * 0.5 + offset * 2) * 50;
-                        const noise = Math.random() * 20;
-                        dataArray[i] = Math.max(0, Math.min(255, wave1 + wave2 + noise));
-                    }
-
-                } catch (e) {
-                    console.warn("Visualizer fallback", e);
+                // For local files, we could use analyser node, but staying compatible with current "simulated" approach if audio context isn't hooked up to analyser
+                // However, wavesurfer has an analyser!
+                // For now, retaining the style but optimizing loop
+                const time = Date.now() / 300;
+                for (let i = 0; i < bufferLength; i++) {
+                    const offset = i / bufferLength * Math.PI * 4;
+                    const wave1 = Math.sin(time + offset) * 100 + 100;
+                    const wave2 = Math.cos(time * 0.5 + offset * 2) * 50;
+                    const noise = Math.random() * 20;
+                    dataArray[i] = Math.max(0, Math.min(255, wave1 + wave2 + noise));
                 }
             } else {
-                bufferLength = 64;
-                dataArray = new Uint8Array(bufferLength).fill(0);
+                dataArray.fill(0);
                 if (currentSongIndex !== -1) {
                     for (let i = 0; i < bufferLength; i++) dataArray[i] = 10;
                 }
@@ -727,22 +867,56 @@ const MusicPlayer = () => {
         };
 
         const renderFrame = () => {
-            animationId = requestAnimationFrame(renderFrame);
-            if (isPlaying) {
-                drawVisualizer();
+            if (document.hidden) {
+                // Stop drawing if hidden over time, but keep loop alive lazily or just skip simple calc
+                // Ideally stop completely.
+            } else {
+                if (isPlaying) {
+                    drawVisualizer();
+                }
             }
+            animationId = requestAnimationFrame(renderFrame);
         };
+
+        // Initial Draw
         drawVisualizer();
+
         if (isPlaying) {
             renderFrame();
         } else {
-            if (animationId) cancelAnimationFrame(animationId);
             drawVisualizer();
+            if (animationId) cancelAnimationFrame(animationId);
         }
+
         return () => {
             if (animationId) cancelAnimationFrame(animationId);
         };
     }, [isPlaying, currentSongIndex, duration]);
+
+    // MediaSession API Integration
+    useEffect(() => {
+        if ('mediaSession' in navigator) {
+            const currentSong = songs[currentSongIndex];
+            if (currentSong) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: decodeHtml(currentSong.title) || 'Unknown Title',
+                    artist: decodeHtml(currentSong.artist) || 'Unknown Artist',
+                    album: 'Music Player',
+                    artwork: [
+                        { src: currentSong.thumbnail || currentSong.artwork || defaultArtwork, sizes: '512x512', type: 'image/png' }
+                    ]
+                });
+
+                navigator.mediaSession.setActionHandler('play', () => { handlePlayPause(); });
+                navigator.mediaSession.setActionHandler('pause', () => { handlePlayPause(); });
+                navigator.mediaSession.setActionHandler('previoustrack', () => { handlePrev(); });
+                navigator.mediaSession.setActionHandler('nexttrack', () => { handleNext(); });
+                // Replace Seek with Prev/Next as requested for Lock Screen
+                navigator.mediaSession.setActionHandler('seekbackward', null); // Disable or map to skip
+                navigator.mediaSession.setActionHandler('seekforward', null);
+            }
+        }
+    }, [currentSongIndex, songs, isPlaying, handlePlayPause, handlePrev, handleNext]);
 
     // Typewriter Effect
     useEffect(() => {
@@ -867,7 +1041,7 @@ const MusicPlayer = () => {
         if (!song) return '';
         if (song.artwork) return song.artwork;
         if (song.thumbnail) return song.thumbnail;
-        return 'https://via.placeholder.com/512?text=Music';
+        return defaultArtwork; // Use the treble clef
     };
 
     const onPlayerReady = useCallback((player) => {
@@ -939,7 +1113,7 @@ const MusicPlayer = () => {
                             <Button
                                 fluid
                                 color={viewMode === 'local' ? 'green' : 'black'}
-                                onClick={() => setViewMode('local')}
+                                onClick={() => enterLocalMode()}
                                 style={{ flex: 1 }}
                             >
                                 <Icon name='folder' /> Local (Offline)
@@ -1192,6 +1366,9 @@ const MusicPlayer = () => {
                             marginTop: '20px',
                             display: currentSongIndex !== -1 && songs[currentSongIndex] && songs[currentSongIndex].type !== 'youtube' ? 'block' : 'none'
                         }}>
+                            <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa', paddingBottom: '5px' }}>
+                                Drag a portion to loop 🔂
+                            </div>
                             <div id="waveform" ref={waveformRef} style={{ width: '100%' }}></div>
                             <div id="wave-timeline" ref={timelineRef} style={{ width: '100%' }}></div>
                             {/* Clear Loop Button moved to controls */}
@@ -1245,62 +1422,83 @@ const MusicPlayer = () => {
                         </div>
                     )}
 
-                    <div className="controls-container controls-grid" style={isYouTube ? { display: 'flex', justifyContent: 'center', gap: '20px' } : {}}> {/* Use CSS Grid Class unless YouTube */}
-                        <button className="control-btn" onClick={() => { }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <Icon name='shuffle' size='large' style={{ margin: 0 }} />
-                            <span style={{ fontSize: '10px', marginTop: '4px' }}>Shuffle</span>
-                        </button>
-
-                        <button className="control-btn" onClick={handlePrev} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <Icon name='step backward' size='large' style={{ margin: 0 }} />
-                            <span style={{ fontSize: '10px', marginTop: '4px' }}>Prev</span>
-                        </button>
-
-                        <button className="control-btn" onClick={handleSkipBackward} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <Icon name='undo' size='large' style={{ margin: 0 }} />
-                            <span style={{ fontSize: '10px', marginTop: '4px' }}>-10s</span>
-                        </button>
-
-                        <button className="play-pause-btn" onClick={handlePlayPause} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', height: '60px' }}>
-                            <Icon name={isPlaying ? 'pause' : 'play'} fitted style={{ fontSize: '24px', margin: 0, marginBottom: '2px' }} />
-                            <span style={{ fontSize: '10px', color: 'black', fontWeight: 'bold' }}>{isPlaying ? 'Pause' : 'Play'}</span>
-                        </button>
-
-                        <button className="control-btn" onClick={handleSkipForward} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <Icon name='redo' size='large' style={{ margin: 0 }} />
-                            <span style={{ fontSize: '10px', marginTop: '4px' }}>+10s</span>
-                        </button>
-
-                        <button className="control-btn" onClick={handleNext} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <Icon name='step forward' size='large' style={{ margin: 0 }} />
-                            <span style={{ fontSize: '10px', marginTop: '4px' }}>Next</span>
-                        </button>
-
+                    <div className="controls-container controls-grid" style={isYouTube ? { display: 'flex', justifyContent: 'center', gap: '20px' } : {
+                        display: 'flex', flexDirection: 'column', gap: '15px'
+                    }}>
+                        {/* Row 1: Shuffle, Prev, Next, Loop */}
                         {!isYouTube && (
-                            <button className="control-btn" onClick={(toggleLoop)} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <Icon name='repeat' size='large' color={loopMode !== 'off' ? 'blue' : null} style={{ margin: 0 }} />
-                                <span style={{ fontSize: '10px', marginTop: '4px' }}>Loop</span>
-                                {loopMode === 'one' && (
-                                    <span style={{
-                                        position: 'absolute',
-                                        top: '30%',
-                                        left: '50%',
-                                        transform: 'translate(-50%, -50%)',
-                                        fontSize: '10px',
-                                        color: '#2185d0',
-                                        fontWeight: '900',
-                                        textShadow: '0 0 2px black'
-                                    }}>1</span>
-                                )}
-                            </button>
+                            <div style={{ display: 'flex', justifySelf: 'center', gap: '20px', justifyContent: 'center' }}>
+                                <div className="control-btn-wrapper">
+                                    <button className="control-btn" onClick={() => { }} title="Shuffle">
+                                        <Icon name='shuffle' size='large' style={{ margin: 0 }} />
+                                    </button>
+                                    <span style={{ fontSize: '10px', color: '#aaa', marginTop: '5px' }}>Shuffle</span>
+                                </div>
+                                <div className="control-btn-wrapper">
+                                    <button className="control-btn" onClick={handlePrev} title="Previous Song">
+                                        <Icon name='step backward' size='large' style={{ margin: 0 }} />
+                                    </button>
+                                    <span style={{ fontSize: '10px', color: '#aaa', marginTop: '5px' }}>Prev</span>
+                                </div>
+                                <div className="control-btn-wrapper">
+                                    <button className="control-btn" onClick={handleNext} title="Next Song">
+                                        <Icon name='step forward' size='large' style={{ margin: 0 }} />
+                                    </button>
+                                    <span style={{ fontSize: '10px', color: '#aaa', marginTop: '5px' }}>Next</span>
+                                </div>
+                                <div className="control-btn-wrapper">
+                                    <button className="control-btn" onClick={(toggleLoop)} title="Loop Mode" style={{ position: 'relative' }}>
+                                        <Icon name={loopMode === 'one' ? 'refresh' : (loopMode === 'all' ? 'repeat' : 'repeat')} size='large' color={loopMode !== 'off' ? 'blue' : null} style={{ margin: 0 }} />
+                                        {loopMode === 'one' && (
+                                            <span style={{
+                                                position: 'absolute',
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                fontSize: '10px',
+                                                color: '#2185d0',
+                                                fontWeight: '900',
+                                                textShadow: '0 0 2px black'
+                                            }}>1</span>
+                                        )}
+                                    </button>
+                                    <span style={{ fontSize: '10px', color: '#aaa', marginTop: '5px' }}>Loop</span>
+                                </div>
+                            </div>
                         )}
 
-                        {!isYouTube && (
-                            <button className="control-btn" onClick={() => { if (regions.current) regions.current.clearRegions(); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <Icon name='erase' size='large' style={{ margin: 0 }} />
-                                <span style={{ fontSize: '10px', marginTop: '4px' }}>Loop Clear</span>
-                            </button>
-                        )}
+                        {/* Row 2: -10s, +10s, Play/Pause, Loop Clear */}
+                        <div style={{ display: 'flex', justifySelf: 'center', gap: '20px', justifyContent: 'center', alignItems: 'center' }}>
+                            <div className="control-btn-wrapper">
+                                <button className="control-btn" onClick={handleSkipBackward} title="Rewind 10s">
+                                    <Icon name='undo' size='large' style={{ margin: 0 }} />
+                                </button>
+                                <span style={{ fontSize: '10px', color: '#aaa', marginTop: '5px' }}>-10s</span>
+                            </div>
+
+                            <div className="control-btn-wrapper">
+                                <button className="play-pause-btn" onClick={handlePlayPause} title={isPlaying ? "Pause" : "Play"} style={{ width: '60px', height: '60px', borderRadius: '50%' }}>
+                                    <Icon name={isPlaying ? 'pause' : 'play'} fitted style={{ fontSize: '24px', margin: 0, paddingLeft: isPlaying ? '0' : '5px' }} />
+                                </button>
+                                <span style={{ fontSize: '10px', color: '#aaa', marginTop: '5px' }}>{isPlaying ? 'Pause' : 'Play'}</span>
+                            </div>
+
+                            <div className="control-btn-wrapper">
+                                <button className="control-btn" onClick={handleSkipForward} title="Forward 10s">
+                                    <Icon name='redo' size='large' style={{ margin: 0 }} />
+                                </button>
+                                <span style={{ fontSize: '10px', color: '#aaa', marginTop: '5px' }}>+10s</span>
+                            </div>
+
+                            {!isYouTube && (
+                                <div className="control-btn-wrapper">
+                                    <button className="control-btn" onClick={() => { if (regions.current) regions.current.clearRegions(); }} title="Clear Loop">
+                                        <Icon name='erase' size='large' style={{ margin: 0 }} />
+                                    </button>
+                                    <span style={{ fontSize: '10px', color: '#aaa', marginTop: '5px' }}>Clear</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div >
