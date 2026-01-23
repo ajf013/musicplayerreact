@@ -1,18 +1,83 @@
 <!doctype html>
 <html lang="en">
-
 <head>
+  <!-- Basic Meta -->
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
+  <!-- Mobile & Theme -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1a1a1a" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Music Player</title>
+
+  <!-- Title (VERY IMPORTANT for SEO) -->
+  <title>Free Web Music App | Online Music Player – fcruz.org</title>
+
+  <!-- Meta Description -->
+  <meta
+    name="description"
+    content="Music.fcruz.org is a fast, free web music app to stream and manage your favorite songs online. Lightweight, secure, and built for performance."
+  />
+
+  <!-- Keywords (low impact, but safe) -->
+  <meta
+    name="keywords"
+    content="free web music app, online music player, music streaming app, lightweight music app, music.fcruz.org"
+  />
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://music.fcruz.org/" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+
+  <!-- Open Graph (Google + WhatsApp + LinkedIn) -->
+  <meta property="og:title" content="Free Web Music App | Music.fcruz.org" />
+  <meta
+    property="og:description"
+    content="A fast and lightweight web music app to stream music online. Built with React and optimized for performance."
+  />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://music.fcruz.org/" />
+  <meta property="og:image" content="https://music.fcruz.org/og-image.png" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Free Web Music App | Music.fcruz.org" />
+  <meta
+    name="twitter:description"
+    content="Stream and manage music online with this fast and free web music app."
+  />
+  <meta name="twitter:image" content="https://music.fcruz.org/og-image.png" />
+
+  <!-- Robots -->
+  <meta name="robots" content="index, follow" />
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Music Player – fcruz.org",
+    "operatingSystem": "Web",
+    "applicationCategory": "MultimediaApplication",
+    "url": "https://music.fcruz.org",
+    "description": "A fast and lightweight web music app built with React for streaming music online.",
+    "author": {
+      "@type": "Person",
+      "name": "Francis Cruz"
+    }
+  }
+  </script>
 </head>
 
 <body>
+  <noscript>
+    Music.fcruz.org requires JavaScript to run. Please enable JavaScript to continue.
+  </noscript>
+
   <div id="root"></div>
+
+  <!-- React Entry -->
   <script type="module" src="/src/main.jsx"></script>
 </body>
-
 </html>
