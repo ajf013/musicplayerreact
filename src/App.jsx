@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
-import Footer from './components/Footer';
 import MusicPlayer from './components/MusicPlayer';
 import ErrorBoundary from './components/ErrorBoundary';
 import ReloadPrompt from './components/ReloadPrompt';
@@ -62,17 +60,17 @@ function App() {
   }
 
   return (
-    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       <SEO />
-      <Header theme={theme} toggleTheme={toggleTheme} />
-      <main style={{ flex: 1, padding: '10px', width: '100%', boxSizing: 'border-box' }}>
+      <main style={{ flex: 1, padding: 0, width: '100%', height: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
         <ErrorBoundary>
-          <MusicPlayer isMobile={true} /> {/* Assuming mobile-first as requested "on the phone" */}
+          <MusicPlayer isMobile={true} theme={theme} toggleTheme={toggleTheme} />
         </ErrorBoundary>
-        <SEOContent theme={theme} />
+        <div className="sr-only">
+          <SEOContent theme={theme} />
+        </div>
       </main>
       <ReloadPrompt />
-      <Footer />
     </div>
   );
 }

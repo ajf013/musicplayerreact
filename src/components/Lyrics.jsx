@@ -9,6 +9,13 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
     const [synced, setSynced] = useState(false);
     const [isUserScrolling, setIsUserScrolling] = useState(false);
 
+    // Override & Import states
+    const [showManualSearch, setShowManualSearch] = useState(false);
+    const [showPasteArea, setShowPasteArea] = useState(false);
+    const [customArtist, setCustomArtist] = useState('');
+    const [customTitle, setCustomTitle] = useState('');
+    const [pastedLyrics, setPastedLyrics] = useState('');
+
     const activeLineRef = useRef(null);
     const containerRef = useRef(null);
     const isAutoScrolling = useRef(false);
@@ -72,7 +79,10 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
         setIsUserScrolling(false);
     };
 
-    const fetchLyrics = async () => {
+    const fetchLyrics = async (overrideArtist, overrideTitle) => {
+        const targetArtist = overrideArtist !== undefined ? overrideArtist : artist;
+        const targetTitle = overrideTitle !== undefined ? overrideTitle : title;
+
         setLoading(true);
         setError(null);
         setLyrics([]);
@@ -80,7 +90,7 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
         setIsUserScrolling(false);
 
         // MOCK DATA FOR VERIFICATION
-        if (title === "Demo Song 1" || title === "Numb") {
+        if (targetTitle === "Demo Song 1" || targetTitle === "Numb") {
             console.log("Loading Mock Synced Lyrics");
             const mockLrc = `
 [00:00.00] (Intro)
@@ -97,10 +107,9 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
             return;
         }
 
-        console.log(`[Lyrics] Fetching for Artist: "${artist}", Title: "${title}"`);
+        console.log(`[Lyrics] Fetching for Artist: "${targetArtist}", Title: "${targetTitle}"`);
 
         try {
-            // Helper to clean title
             const cleanTitle = (t) => t
                 .replace(/\(.*\)|\[.*\]/g, '')
                 .split('|')[0]
@@ -113,8 +122,8 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
                 try {
                     const res = await axios.get('https://lrclib.net/api/get', {
                         params: {
-                            artist_name: artist !== 'Unknown Artist' ? artist : '',
-                            track_name: cleanTitle(title),
+                            artist_name: targetArtist !== 'Unknown Artist' ? targetArtist : '',
+                            track_name: cleanTitle(targetTitle),
                         }
                     });
                     if (res.data) responseData = res.data;
@@ -122,7 +131,7 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
             }
 
             if (!responseData) {
-                const query = `${artist !== 'Unknown Artist' ? artist : ''} ${cleanTitle(title)}`.trim();
+                const query = `${targetArtist !== 'Unknown Artist' ? targetArtist : ''} ${cleanTitle(targetTitle)}`.trim();
                 try {
                     const res = await axios.get('https://lrclib.net/api/search', { params: { q: query } });
                     if (res.data && res.data.length > 0) responseData = res.data[0];
@@ -130,7 +139,7 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
             }
 
             if (!responseData) {
-                const query = cleanTitle(title);
+                const query = cleanTitle(targetTitle);
                 try {
                     const res = await axios.get('https://lrclib.net/api/search', { params: { q: query } });
                     if (res.data && res.data.length > 0) responseData = res.data[0];
@@ -156,6 +165,45 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
             setError("Could not load lyrics");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLrcUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target.result;
+            const parsed = parseLrc(text);
+            if (parsed.length > 0) {
+                setLyrics(parsed);
+                setSynced(true);
+                setError(null);
+                setShowPasteArea(false);
+            } else {
+                setLyrics([{ time: 0, text: text }]);
+                setSynced(false);
+                setError(null);
+                setShowPasteArea(false);
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const handlePasteSubmit = () => {
+        if (!pastedLyrics.trim()) return;
+        const parsed = parseLrc(pastedLyrics);
+        if (parsed.length > 0) {
+            setLyrics(parsed);
+            setSynced(true);
+            setError(null);
+            setShowPasteArea(false);
+        } else {
+            setLyrics([{ time: 0, text: pastedLyrics }]);
+            setSynced(false);
+            setError(null);
+            setShowPasteArea(false);
         }
     };
 
@@ -219,22 +267,81 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
             )}
 
             {!loading && (
-                <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 10 }}>
+                <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <Label
                         size='mini'
                         color={synced ? 'green' : 'grey'}
                     >
                         {synced ? 'Synced' : 'Text Only'}
                     </Label>
+                    <Icon 
+                        name='setting' 
+                        style={{ cursor: 'pointer', color: '#aaa' }} 
+                        onClick={() => {
+                            setShowManualSearch(!showManualSearch);
+                            setShowPasteArea(false);
+                        }} 
+                    />
                 </div>
             )}
 
+            {showManualSearch && (
+                <div style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', margin: '15px 0' }}>
+                    <h4 style={{ margin: '0 0 10px 0', color: 'white' }}>Search Lyrics</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '280px', margin: '0 auto' }}>
+                        <input 
+                            placeholder="Artist Name" 
+                            value={customArtist} 
+                            onChange={(e) => setCustomArtist(e.target.value)}
+                            style={{ background: '#222', border: '1px solid #444', color: 'white', padding: '6px 10px', borderRadius: '5px' }}
+                        />
+                        <input 
+                            placeholder="Song Title" 
+                            value={customTitle} 
+                            onChange={(e) => setCustomTitle(e.target.value)}
+                            style={{ background: '#222', border: '1px solid #444', color: 'white', padding: '6px 10px', borderRadius: '5px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                            <Button size='mini' color='violet' onClick={() => { fetchLyrics(customArtist, customTitle); setShowManualSearch(false); }}>Search</Button>
+                            <Button size='mini' onClick={() => setShowManualSearch(false)}>Cancel</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showPasteArea && (
+                <div style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', margin: '15px 0' }}>
+                    <h4 style={{ margin: '0 0 10px 0', color: 'white' }}>Paste or Upload LRC</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '280px', margin: '0 auto' }}>
+                        <textarea 
+                            placeholder="Paste LRC content here... [00:12.34] Lyrics line" 
+                            value={pastedLyrics} 
+                            onChange={(e) => setPastedLyrics(e.target.value)}
+                            rows={4}
+                            style={{ background: '#222', border: '1px solid #444', color: 'white', padding: '6px 10px', borderRadius: '5px', fontFamily: 'monospace', fontSize: '12px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center' }}>
+                            <Button size='mini' color='pink' onClick={handlePasteSubmit}>Submit Text</Button>
+                            <span style={{ fontSize: '12px', color: '#aaa' }}>or</span>
+                            <label style={{ background: '#444', color: 'white', padding: '5px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', margin: 0 }}>
+                                Upload .lrc
+                                <input type="file" accept=".lrc,.txt" onChange={handleLrcUpload} style={{ display: 'none' }} />
+                            </label>
+                        </div>
+                        <Button size='mini' onClick={() => setShowPasteArea(false)} style={{ width: 'fit-content', alignSelf: 'center', marginTop: '5px' }}>Cancel</Button>
+                    </div>
+                </div>
+            )}
 
             {!loading && error && (
                 <div style={{ padding: '20px', opacity: 0.7 }}>
                     <Icon name='music' size='large' />
                     <p>{error}</p>
-                    <Button size='mini' compact onClick={fetchLyrics} inverted>Retry</Button>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <Button size='mini' compact onClick={() => fetchLyrics()} inverted>Retry</Button>
+                        <Button size='mini' compact onClick={() => setShowManualSearch(true)} color='violet'>Search Manually</Button>
+                        <Button size='mini' compact onClick={() => setShowPasteArea(true)} color='pink'>Paste/Upload LRC</Button>
+                    </div>
                 </div>
             )}
 
@@ -256,7 +363,7 @@ const Lyrics = ({ artist, title, currentTime, isPlaying }) => {
                                     color: isActive ? '#d8b4fe' : '#9ca3af',
                                     textShadow: isActive ? '0 0 20px rgba(167, 139, 250, 0.5)' : 'none',
                                     fontSize: isActive ? '22px' : '16px',
-                                    background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent', // Added subtle background
+                                    background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
                                     borderRadius: '10px'
                                 }}
                             >
